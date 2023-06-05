@@ -103,7 +103,7 @@ jobs:
         args: --target=x86_64-pc-windows-msvc --release
 
     - name: Archive Windows output
-      if: matrix.os
+      if: matrix.os == 'windows-latest'
       run: Compress-Archive -Path "target\x86_64-pc-windows-msvc\release\rps.exe" -DestinationPath "out\rps-x86_64-pc-windows-msvc.zip"
 
     - name: Build Linux
