@@ -15,7 +15,6 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     env:
       CARGO_TERM_COLOR: always
-      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
     steps:
     - uses: actions/checkout@v3
@@ -63,10 +62,6 @@ jobs:
         sudo apt-get install gcc-mingw-w64-x86-64 musl musl-tools gcc-aarch64-linux-gnu
         curl https://apt.llvm.org/llvm.sh | sudo bash -s 16
 
-    - name: Install macOS dependencies
-      if: matrix.os == 'macos-latest'
-      run: env HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-tar
-
     - name: Install rust cache
       uses: Swatinem/rust-cache@v2
 
@@ -97,8 +92,8 @@ jobs:
     - name: Archive macOS outputs
       if: matrix.os == 'macos-latest'
       run: |
-        tar -caf out/rps-macos-x64.tar.xz target/x86_64-apple-darwin/release/rps
-        tar -caf out/rps-macos-arm.tar.xz target/aarch64-apple-darwin/release/rps
+        zip -r out/rps-macos-x64.zip -j target/x86_64-apple-darwin/release/rps
+        tar -caf out/rps-macos-arm.zip -j target/aarch64-apple-darwin/release/rps
 
     - name: Build Windows MSVC
       if: matrix.os == 'windows-latest'
