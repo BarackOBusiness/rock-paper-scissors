@@ -1,31 +1,143 @@
-name: Rust Debug Build
+name: Build
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-env:
-  CARGO_TERM_COLOR: always
+    # Only run on pushes to branches, no tags
+    branches: '**'
+  # Manual builds
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build for ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
 
     steps:
     - uses: actions/checkout@v3
-    - name: Build
-      run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v2
+    - name: Create output folder
+      run: mkdir out
+
+      # Install rust for each platform
+      
+    - name: Install Rust - MacOS
+      if: matrix.os == 'macos-latest'
+      uses: actions-rs/toolchain@v1
       with:
-        # As of right now, just upload the whole release folder, because I don't have the knowledge to set this up to
-        # match patterns against whether it's a windows or linux release or not
-        path: target/debug
+        toolchain: stable
+        target: aarch64-apple-darwin
+
+    - name: Install Rust - Windows
+      if: matrix.os == 'windows-latest'
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+
+    - name: Install GNU/musl toolchains
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: x86_64-pc-windows-gnu
+      run: |
+        rustup target add x86_64-unknown-linux-musl
+        rustup target add aarch64-unknown-linux-musl
+
+    - name: Install linux dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install gcc-mingw-w64-x86-64 musl musl-tools gcc-aarch64-linux-gnu
+        curl https://apt.llvm.org/llvm.sh | sudo bash -s 16
+
+    - name: Install macOS dependencies
+      if: matrix.os == 'macos-latest'
+      run: env HOMEBREW_NO_AUTO_UPDATE=1 brew install gnu-tar
+
+    - name: Install rust cache
+      uses: Swatinem/rust-cache@v2
+
+    - name: Lint code
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+
+    - name: Run tests
+      uses: actions-rs/cargo@v1
+      with: 
+        command: test
+
+    - name: Build macOS Intel
+      if: matrix.os == 'macos-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=x86_64-apple-darwin --release
+      
+    - name: Build macOS ARM
+      if: matrix.os == 'macos-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=aarch64-apple-darwin --release
+
+    - name: Archive macOS outputs
+      if: matrix.os == 'macos-latest'
+      run: |
+        tar -caf out/rps-macos-x64.tar.xz target/x86_64-apple-darwin/release/rps
+        tar -caf out/rps-macos-arm.tar.xz target/aarch64-apple-darwin/release/rps
+
+    - name: Build Windows MSVC
+      if: matrix.os == 'windows-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=x86_64-pc-windows-msvc --release
+
+    - name: Archive Windows output
+      if: matrix.os
+      run: Compress-Archive -Path "target\x86_64-pc-windows-msvc\release\rps.exe" -DestinationPath "out\rps-x86_64-pc-windows-msvc.zip"
+
+    - name: Build Linux
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=x86_64-unknown-linux-musl --release
+
+    - name: Build ARM Linux
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: rustc
+        args: --target=aarch64-unknown-linux-musl --release -- -Clink-self-contained=yes -Clinker=rust-lld
+      env:
+        CC_aarch64_unknown-linux-musl: clang-16
+
+    - name: Archive Linux outputs
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        tar -caf out/rps-linux-static.tar.xz target/x86_64-unknown-linux-musl/rps
+        tar -caf out/rps-linux-static-aarch64.tar.xz target/aarch64-unknown-linux-musl/rps
+
+    - name: Build Windows GNU
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/cargo@v1
+      with:
+        command: build
+        args: --target=x86-64-pc-windows-gnu --release
+
+    - name: Archive Windows GNU output
+      if: matrix.os == 'ubuntu-latest'
+      run: zip -r out/rps-x86_64-pc-windows-gnu.zip -j target/x86_64-pc-windows-gnu/release/rps.exe
+
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: Binaries
+        path: out/rps*.*
+        if-no-files-found: error
