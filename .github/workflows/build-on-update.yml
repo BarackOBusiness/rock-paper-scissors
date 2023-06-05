@@ -37,15 +37,24 @@ jobs:
       with:
         toolchain: stable
 
-    - name: Install GNU/musl toolchains
+    - name: Install GNU Windows toolchain
       if: matrix.os == 'ubuntu-latest'
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
         target: x86_64-pc-windows-gnu
-      run: |
-        rustup target add x86_64-unknown-linux-musl
-        rustup target add aarch64-unknown-linux-musl
+    - name: Install Linux musl toolchain
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: x86_64-unknown-linux-musl
+    - name: Install linux musl toolchain for AARCH64
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        target: aarch64-unknown-linux-musl
 
     - name: Install linux dependencies
       if: matrix.os == 'ubuntu-latest'
