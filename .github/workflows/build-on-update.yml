@@ -28,4 +28,4 @@ jobs:
       with:
         # As of right now, just upload the whole release folder, because I don't have the knowledge to set this up to
         # match patterns against whether it's a windows or linux release or not
-        path: target/release
+        path: target/debug
