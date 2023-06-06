@@ -47,22 +47,14 @@ fn game_loop(mut p: Player, mut cpu: Player, rounds: u32) -> Player {
             let process: String = buffer.to_lowercase();
             let process: &str = process.trim();
 
-            buffer = String::new();
+            buffer.clear();
 
-            match process {
-                r if r == "rock" => {
-                    p.select(HandShape::resolve_from(process));
+            match HandShape::resolve_from(process) {
+                Ok(x) => {
+                    p.select(x);
                     break;
                 }
-                p_ if p_ == "paper" => {
-                    p.select(HandShape::resolve_from(process));
-                    break;
-                }
-                s if s == "scissor" || s == "scissors" => {
-                    p.select(HandShape::resolve_from(process));
-                    break;
-                }
-                _ => incorrect_input(&buffer),
+                Err(e) => println!("{}", e),
             }
         }
 
@@ -100,12 +92,4 @@ fn loss(p: &Player, cpu: &mut Player) {
         cpu.selection, p.selection
     );
     cpu.incr_score();
-}
-
-fn incorrect_input(in_: &String) {
-    println!(
-        "You typed {} which is an invalid choice, valid choices are one of the following: 
-        rock, paper, or scissors",
-        in_
-    );
 }
